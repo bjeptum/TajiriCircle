@@ -139,7 +139,7 @@ async def ussd_test_interface():
             <div class="info">
                 <strong>How to test:</strong>
                 <br>1. Enter your phone number (e.g., +254700123456)
-                <br>2. Leave input empty for first dial (*384#)
+                <br>2. Leave input empty for first dial (*384*7815#)
                 <br>3. Enter menu choices (1, 2, 3, etc.)
                 <br>4. Follow the menu navigation
             </div>

@@ -21,9 +21,19 @@ TajiriCircle transforms hustlers into bankable, creditworthy, financially empowe
 - **Express.js API Server** - RESTful API with SQLite database
 - **SMS Parser Service** - Natural language processing for M-Pesa messages
 - **Fraud Detector** - Machine learning-based scam detection
-- **USSD Service** - Feature phone integration
+- **USSD Service** - Feature phone integration (*384#)
 - **Blockchain Service** - Celo-based smart contracts for chamas
 - **Trust Score Calculator** - Alternative credit scoring algorithm
+
+### 📱 Enhanced USSD Features
+- **Multi-language Support**: English and Kiswahili
+- **Complete Registration**: Name + ID verification + confirmation
+- **Chama Management**: Create, join, contribute, view chamas
+- **Advanced Savings**: Save, withdraw, goals, history tracking
+- **Dynamic Trust Score**: Real-time calculation with improvement guidance
+- **Financial Education**: 10+ rotating tips for financial literacy
+- **Smart Navigation**: Back (0) and Main Menu (00) from anywhere
+- **Error Recovery**: Comprehensive error handling with helpful messages
 
 ## 🛠️ Tech Stack
 
@@ -93,8 +103,47 @@ docker-compose ps
 5. **Access the application**
 - **Frontend**: http://localhost:3000
 - **Backend API**: http://localhost:8000
+- **USSD Service**: http://localhost:8001
+- **USSD Web Tester**: http://localhost:8001/test
 - **Flower (Task Monitor)**: http://localhost:5555
 - **MailHog (Email Testing)**: http://localhost:8025
+
+### 📱 USSD Service Management
+
+**Start USSD service with integrated testing:**
+```bash
+./start_ussd.sh
+```
+
+**Available USSD commands:**
+```bash
+./start_ussd.sh          # Start service
+./start_ussd.sh test     # Start and run comprehensive tests
+./start_ussd.sh logs     # View service logs
+./start_ussd.sh stop     # Stop service
+./start_ussd.sh restart  # Restart service
+./start_ussd.sh --help   # Show help
+```
+
+**Test USSD flows:**
+```bash
+# Quick test - Initial dial
+curl -X POST http://localhost:8001/ussd \
+  -F "sessionId=demo" \
+  -F "phoneNumber=+254700123456" \
+  -F "text="
+
+# Test registration flow
+curl -X POST http://localhost:8001/ussd \
+  -F "sessionId=demo" \
+  -F "phoneNumber=+254700123456" \
+  -F "text=1*1*John Demo*12345678*1"
+```
+
+**USSD Features Documentation:**
+- **Complete Guide**: `ussd_service/NAVIGATION_GUIDE.md`
+- **Web Interface**: http://localhost:8001/test
+- **API Health**: http://localhost:8001/health
 
 ### For Windows Users
 
