@@ -1,0 +1,80 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    env_file:
+      - .env
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+
+  db:
+    image: postgres:15
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: tajiricircle
+
+  redis:
+    image: redis:alpine
+
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A worker worker --loglevel=info
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - redis
+      - db
+    environment:
+      - PYTHONPATH=/app
+
+  flower:
+    image: mher/flower
+    ports:
+      - "5555:5555"
+    environment:
+      - CELERY_BROKER=redis://redis:6379/0
+
+  mailhog:
+    image: mailhog/mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  ussd-service:
+    build:
+      context: ./ussd_service
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./ussd_service:/app
+    depends_on:
+      - redis
+      - backend
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - MAIN_BACKEND_URL=http://backend:8000
+
+volumes:
+  postgres_data:
