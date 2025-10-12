@@ -1,11 +1,10 @@
-from sqlalchemy.ext.declarative import as_declarative, declared_attr
+from sqlalchemy.orm import DeclarativeBase, declared_attr
+from typing import Any
 
-@as_declarative()
-class Base:
-    id: int
-    __name__: str
-
+class Base(DeclarativeBase):
+    """Base class for all database models"""
+    
     # Generate __tablename__ automatically
-    @declared_attr
+    @declared_attr.directive
     def __tablename__(cls) -> str:
         return cls.__name__.lower()

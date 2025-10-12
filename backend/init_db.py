@@ -14,6 +14,8 @@ from core.config import Settings
 # Import all models to ensure they're registered
 from models.user import User
 from models.chama import Chama, ChamaMember, ChamaContribution
+from models.transaction import Transaction, SMSParsingLog
+from models.loan import LoanApplication, BankUser, LoanEvidence, LoanReview, LoanOffer
 
 def init_db():
     """Create database tables."""
