@@ -61,41 +61,40 @@ export function BankApp({ onBack }: BankAppProps) {
     try {
       setLoading(true);
       const token = localStorage.getItem('bankToken');
-      if (!token) return;
-
-      const response = await fetch('/api/bank/applications', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        // Transform API data to match our interface
-        const transformedApps: LoanApplication[] = data.map((app: any) => ({
-          id: app.id.toString(),
-          applicantName: app.applicant_name,
-          businessName: app.business_name,
-          businessType: app.business_type || 'other',
-          location: app.location || 'Unknown',
-          amount: app.amount_requested,
-          purpose: 'Loan application',
-          greenScore: app.green_score,
-          interestRate: 14,
-          term: 12,
-          status: app.status,
-          appliedDate: app.applied_date,
-          ecoActions: [],
-          riskAssessment: {
-            creditScore: 700,
-            fraudRisk: 'low' as const,
-            anomalies: []
-          }
-        }));
-        setApplications(transformedApps);
+      if (!token) {
+        console.error('No bank token found');
+        return;
       }
+
+      // Import apiService dynamically
+      const { apiService } = await import('../lib/api');
+      const data = await apiService.getBankApplications(token);
+      
+      // Transform API data to match our interface
+      const transformedApps: LoanApplication[] = data.map((app: any) => ({
+        id: app.id.toString(),
+        applicantName: app.applicant_name || app.user?.name || app.user?.phone || 'Unknown',
+        businessName: app.business_name || 'Unknown Business',
+        businessType: app.business_type || 'other',
+        location: app.location || 'Unknown',
+        amount: app.amount_requested || 0,
+        purpose: app.loan_purpose || 'Loan application',
+        greenScore: app.green_score || 0,
+        interestRate: app.interest_rate || 14,
+        term: app.loan_term || 12,
+        status: app.status || 'pending',
+        appliedDate: app.applied_date || app.created_at,
+        ecoActions: app.eco_actions || [],
+        riskAssessment: {
+          creditScore: app.credit_score || 700,
+          fraudRisk: app.fraud_risk_level || 'low' as const,
+          anomalies: app.risk_factors || []
+        }
+      }));
+      setApplications(transformedApps);
     } catch (error) {
       console.error('Failed to fetch applications:', error);
+      // Handle error appropriately - maybe show a toast notification
     } finally {
       setLoading(false);
     }

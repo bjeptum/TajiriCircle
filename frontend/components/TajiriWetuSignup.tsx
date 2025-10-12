@@ -27,20 +27,43 @@ export function TajiriWetuSignup({ onSignup, onBack, onNavigateToLogin }: Tajiri
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    // Simulate signup
-    setTimeout(() => {
+    try {
+      // Import apiService at the top of the file
+      const { apiService } = await import('../lib/api');
+      
+      // Use real API signup
+      const userData = await apiService.register({
+        phone: formData.phoneNumber,
+        password: formData.idNumber // Using ID as password for now - you might want a proper password field
+      });
+      
+      // After successful registration, attempt login
+      const loginResponse = await apiService.login({
+        phone: formData.phoneNumber,
+        password: formData.idNumber
+      });
+      
+      // Call onSignup with user data
       onSignup({
+        id: loginResponse.user.id,
         name: formData.fullName,
         phone: formData.phoneNumber,
         email: formData.email,
-        portal: 'client'
+        portal: 'client',
+        token: loginResponse.access_token
       });
+      
+    } catch (error) {
+      console.error('Signup failed:', error);
+      // Handle error - show message to user
+      alert('Signup failed. Please try again.');
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
   const isFormValid = () => {

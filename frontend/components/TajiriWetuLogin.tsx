@@ -27,19 +27,36 @@ export function TajiriWetuLogin({ onLogin, onBack, onNavigateToSignup }: TajiriW
     }, 1500);
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     
-    // Simulate login
-    setTimeout(() => {
-      onLogin({
-        name: 'John Doe',
+    try {
+      // Import apiService at the top of the file
+      const { apiService } = await import('../lib/api');
+      
+      // Use real API login
+      const response = await apiService.login({
         phone: emailOrPhone,
-        portal: 'client'
+        password: password
       });
+      
+      // Call onLogin with user data
+      onLogin({
+        id: response.user.id,
+        name: response.user.name || 'User',
+        phone: response.user.phone,
+        portal: 'client',
+        token: response.access_token
+      });
+      
+    } catch (error) {
+      console.error('Login failed:', error);
+      // Handle error - show message to user
+      alert('Login failed. Please check your credentials.');
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
   return (

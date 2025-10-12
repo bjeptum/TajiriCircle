@@ -12,6 +12,7 @@ import { ProfilePage } from './components/ProfilePage';
 import { FloatingTajiriBot } from './components/FloatingTajiriBot';
 import { Button } from './components/ui/button';
 import { Phone, Shield, Users, User, LogOut, Wallet, Building2 } from 'lucide-react';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 type AppState = 
   | 'welcome-animation'
@@ -24,10 +25,10 @@ type AppState =
 
 type ClientPage = 'dashboard' | 'chama' | 'fraud' | 'profile';
 
-export default function App() {
+function AppContent() {
+  const { isAuthenticated, isBankUser, user, bankUser, login, bankLogin, logout } = useAuth();
   const [appState, setAppState] = useState<AppState>('welcome-animation');
   const [currentPage, setCurrentPage] = useState<ClientPage>('dashboard');
-  const [userData, setUserData] = useState<any>(null);
   const [showBot, setShowBot] = useState(false);
 
   // Show bot after welcome animation completes
@@ -36,6 +37,15 @@ export default function App() {
       setShowBot(true);
     }
   }, [appState]);
+
+  // Auto-navigate based on authentication state
+  useEffect(() => {
+    if (isAuthenticated && isBankUser) {
+      setAppState('bank-dashboard');
+    } else if (isAuthenticated && !isBankUser) {
+      setAppState('tajiri-dashboard');
+    }
+  }, [isAuthenticated, isBankUser]);
 
   // Handle welcome animation completion
   const handleAnimationComplete = () => {
@@ -47,29 +57,29 @@ export default function App() {
     setAppState(destination);
   };
 
-  // Handle Tajiri Wetu login
-  const handleTajiriLogin = (user: any) => {
-    setUserData(user);
+  // Handle Tajiri Wetu login - for now keep the existing interface
+  const handleTajiriLogin = (userData: any) => {
+    // TODO: Update login components to use proper authentication
     setAppState('tajiri-dashboard');
     setCurrentPage('dashboard');
   };
 
-  // Handle Tajiri Wetu signup
-  const handleTajiriSignup = (user: any) => {
-    setUserData(user);
+  // Handle Tajiri Wetu signup - for now keep the existing interface
+  const handleTajiriSignup = (userData: any) => {
+    // TODO: Update signup components to use proper authentication
     setAppState('tajiri-dashboard');
     setCurrentPage('dashboard');
   };
 
-  // Handle Bank login
-  const handleBankLogin = (user: any) => {
-    setUserData(user);
+  // Handle Bank login - for now keep the existing interface
+  const handleBankLogin = (userData: any) => {
+    // TODO: Update bank login components to use proper authentication
     setAppState('bank-dashboard');
   };
 
   // Handle logout
   const handleLogout = () => {
-    setUserData(null);
+    logout();
     setAppState('main-landing');
     setCurrentPage('dashboard');
   };
@@ -321,4 +331,12 @@ export default function App() {
   }
 
   return null;
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
 }

@@ -14,19 +14,34 @@ export function BankLogin({ onLogin, onBack }: BankLoginProps) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    // Simulate login
-    setTimeout(() => {
+    try {
+      // Import apiService at the top of the file
+      const { apiService } = await import('../lib/api');
+      
+      // Use real API bank login
+      const response = await apiService.bankLogin(email, password);
+      
+      // Call onLogin with user data
       onLogin({
-        name: 'Bank Administrator',
-        email: email,
-        portal: 'bank'
+        id: response.user.id,
+        name: response.user.name,
+        email: response.user.email,
+        role: response.user.role,
+        portal: 'bank',
+        token: response.access_token
       });
+      
+    } catch (error) {
+      console.error('Bank login failed:', error);
+      // Handle error - show message to user
+      alert('Bank login failed. Please check your credentials.');
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
   return (

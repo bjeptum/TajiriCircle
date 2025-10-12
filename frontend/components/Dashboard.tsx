@@ -56,15 +56,35 @@ export function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Get user ID from localStorage or context
-  const userId = 4; // For demo, we'll use the test user we created
+  // Get user ID from localStorage
+  const getUserId = () => {
+    try {
+      const userData = localStorage.getItem('tajiri_user');
+      if (userData) {
+        const user = JSON.parse(userData);
+        return user.id;
+      }
+    } catch (error) {
+      console.error('Failed to get user ID:', error);
+    }
+    return null;
+  };
+
+  const userId = getUserId();
 
   useEffect(() => {
     const fetchDashboardData = async () => {
+      if (!userId) {
+        setError('User not authenticated');
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         setError(null);
-        const data = await apiService.getDashboardData(userId);
+        const token = localStorage.getItem('tajiri_token');
+        const data = await apiService.getDashboardData(userId, token || undefined);
         setDashboardData(data);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load dashboard data');

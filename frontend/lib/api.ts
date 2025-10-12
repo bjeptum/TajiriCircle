@@ -4,6 +4,13 @@ const API_BASE_URL = '/api'; // This will proxy through Vite to backend:8000
 export interface User {
   id: number;
   phone: string;
+  name?: string;
+  email?: string;
+  business_name?: string;
+  business_type?: string;
+  location?: string;
+  green_score?: number;
+  is_verified?: boolean;
 }
 
 export interface RegisterRequest {
@@ -15,6 +22,44 @@ export interface LoginRequest {
   phone: string;
   password: string;
 }
+
+// Helper function to get auth headers
+const getAuthHeaders = (token?: string) => {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  } else {
+    // Try to get token from localStorage
+    const storedToken = localStorage.getItem('tajiri_token');
+    if (storedToken) {
+      headers['Authorization'] = `Bearer ${storedToken}`;
+    }
+  }
+  
+  return headers;
+};
+
+// Helper function to get bank auth headers
+const getBankAuthHeaders = (token?: string) => {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  } else {
+    // Try to get bank token from localStorage
+    const storedBankToken = localStorage.getItem('bankToken');
+    if (storedBankToken) {
+      headers['Authorization'] = `Bearer ${storedBankToken}`;
+    }
+  }
+  
+  return headers;
+};
 
 // API Functions
 export const apiService = {
@@ -87,8 +132,10 @@ export const apiService = {
   },
 
   // Get dashboard data
-  async getDashboardData(userId: number): Promise<any> {
-    const response = await fetch(`${API_BASE_URL}/dashboard/${userId}`);
+  async getDashboardData(userId: number, token?: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/dashboard/${userId}`, {
+      headers: getAuthHeaders(token),
+    });
     
     if (!response.ok) {
       throw new Error(`Failed to fetch dashboard data: ${response.statusText}`);
@@ -98,8 +145,10 @@ export const apiService = {
   },
 
   // Get chamas data
-  async getChamas(userId: number): Promise<any> {
-    const response = await fetch(`${API_BASE_URL}/chamas/${userId}`);
+  async getChamas(userId: number, token?: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/chamas/${userId}`, {
+      headers: getAuthHeaders(token),
+    });
     
     if (!response.ok) {
       throw new Error(`Failed to fetch chamas: ${response.statusText}`);
@@ -109,8 +158,10 @@ export const apiService = {
   },
 
   // Get fraud alerts
-  async getFraudAlerts(userId: number): Promise<any> {
-    const response = await fetch(`${API_BASE_URL}/fraud-alerts/${userId}`);
+  async getFraudAlerts(userId: number, token?: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/fraud-alerts/${userId}`, {
+      headers: getAuthHeaders(token),
+    });
     
     if (!response.ok) {
       throw new Error(`Failed to fetch fraud alerts: ${response.statusText}`);
@@ -120,8 +171,10 @@ export const apiService = {
   },
 
   // Get user profile
-  async getUserProfile(userId: number): Promise<any> {
-    const response = await fetch(`${API_BASE_URL}/auth/users/${userId}/profile`);
+  async getUserProfile(userId: number, token?: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/auth/users/${userId}/profile`, {
+      headers: getAuthHeaders(token),
+    });
     
     if (!response.ok) {
       throw new Error(`Failed to fetch user profile: ${response.statusText}`);
@@ -131,30 +184,24 @@ export const apiService = {
   },
 
   // Update user profile
-  async updateUserProfile(userId: number, profileData: any): Promise<any> {
+  async updateUserProfile(userId: number, profileData: any, token?: string): Promise<any> {
     const response = await fetch(`${API_BASE_URL}/auth/users/${userId}/profile`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(token),
       body: JSON.stringify(profileData),
     });
-
+    
     if (!response.ok) {
       throw new Error(`Failed to update user profile: ${response.statusText}`);
     }
 
     return response.json();
-  },
-
-  // Parse SMS for transactions
-  async parseSMS(userId: number, smsText: string, sender?: string): Promise<any> {
-    const response = await fetch(`${API_BASE_URL}/sms/parse?user_id=${userId}`, {
+  },    // Parse SMS for transactions
+  async parseSMS(userId: number, smsText: string, sender?: string, token?: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/transactions/parse-sms`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ sms_text: smsText, sender }),
+      headers: getAuthHeaders(token),
+      body: JSON.stringify({ user_id: userId, sms_text: smsText, sender }),
     });
 
     if (!response.ok) {
@@ -165,14 +212,19 @@ export const apiService = {
   },
 
   // Get user transactions
-  async getTransactions(userId: number, filters?: any): Promise<any> {
-    let url = `${API_BASE_URL}/transactions/${userId}`;
+  async getTransactions(userId: number, filters?: any, token?: string): Promise<any> {
+    const queryParams = new URLSearchParams();
     if (filters) {
-      const params = new URLSearchParams(filters);
-      url += `?${params}`;
+      Object.keys(filters).forEach(key => {
+        if (filters[key] !== undefined && filters[key] !== null) {
+          queryParams.append(key, filters[key].toString());
+        }
+      });
     }
-    
-    const response = await fetch(url);
+
+    const response = await fetch(`${API_BASE_URL}/transactions/${userId}?${queryParams}`, {
+      headers: getAuthHeaders(token),
+    });
     
     if (!response.ok) {
       throw new Error(`Failed to fetch transactions: ${response.statusText}`);
@@ -182,13 +234,11 @@ export const apiService = {
   },
 
   // Create manual transaction
-  async createTransaction(userId: number, transactionData: any): Promise<any> {
-    const response = await fetch(`${API_BASE_URL}/transactions?user_id=${userId}`, {
+  async createTransaction(userId: number, transactionData: any, token?: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/transactions`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(transactionData),
+      headers: getAuthHeaders(token),
+      body: JSON.stringify({ user_id: userId, ...transactionData }),
     });
 
     if (!response.ok) {
@@ -199,12 +249,10 @@ export const apiService = {
   },
 
   // Submit loan application
-  async submitLoanApplication(userId: number, applicationData: any): Promise<any> {
+  async submitLoanApplication(userId: number, applicationData: any, token?: string): Promise<any> {
     const response = await fetch(`${API_BASE_URL}/sme/applications`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(token),
       body: JSON.stringify({ user_id: userId, application: applicationData }),
     });
 
@@ -214,6 +262,8 @@ export const apiService = {
 
     return response.json();
   },
+
+
 
   // Bank login
   async bankLogin(email: string, password: string): Promise<any> {
@@ -233,11 +283,9 @@ export const apiService = {
   },
 
   // Get bank applications
-  async getBankApplications(token: string): Promise<any> {
+  async getBankApplications(token?: string): Promise<any> {
     const response = await fetch(`${API_BASE_URL}/bank/applications`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
+      headers: getBankAuthHeaders(token),
     });
 
     if (!response.ok) {
@@ -247,14 +295,52 @@ export const apiService = {
     return response.json();
   },
 
+  // Get bank applications queue
+  async getBankApplicationsQueue(token?: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/bank/applications/queue`, {
+      headers: getBankAuthHeaders(token),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch bank applications queue: ${response.statusText}`);
+    }
+
+    return response.json();
+  },
+
+  // Get specific bank application
+  async getBankApplication(appId: number, token?: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/bank/applications/${appId}`, {
+      headers: getBankAuthHeaders(token),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch bank application: ${response.statusText}`);
+    }
+
+    return response.json();
+  },
+
+  // Update application status
+  async updateApplicationStatus(appId: number, status: string, notes?: string, token?: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/bank/applications/${appId}/status`, {
+      method: 'PUT',
+      headers: getBankAuthHeaders(token),
+      body: JSON.stringify({ status, notes }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to update application status: ${response.statusText}`);
+    }
+
+    return response.json();
+  },
+
   // Review loan application
-  async reviewLoanApplication(appId: number, reviewerId: number, reviewData: any, token: string): Promise<any> {
+  async reviewLoanApplication(appId: number, reviewerId: number, reviewData: any, token?: string): Promise<any> {
     const response = await fetch(`${API_BASE_URL}/bank/applications/${appId}/review?reviewer_id=${reviewerId}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers: getBankAuthHeaders(token),
       body: JSON.stringify(reviewData),
     });
 

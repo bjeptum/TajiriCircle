@@ -20,6 +20,7 @@ def get_all_loan_applications(
     limit: int = Query(100, le=1000),
     status: Optional[str] = Query(None),
     db: Session = Depends(get_db)
+    # TODO: Add bank user authentication dependency
 ):
     """Get all loan applications with optional filtering"""
     
