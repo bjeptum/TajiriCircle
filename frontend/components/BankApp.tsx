@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { BankLogin } from './bank/BankLogin';
-import { BankDashboard } from './bank/BankDashboard';
-import { ApplicationQueue } from './bank/ApplicationQueue';
-import { CaseReview } from './bank/CaseReview';
-import { PortfolioDashboard } from './bank/PortfolioDashboard';
+import { useState, useEffect } from 'react';
+import { BankLogin } from './bank/BankLogin.tsx';
+import { BankDashboard } from './bank/BankDashboard.tsx';
+import { ApplicationQueue } from './bank/ApplicationQueue.tsx';
+import { CaseReview } from './bank/CaseReview.tsx';
+import { PortfolioDashboard } from './bank/PortfolioDashboard.tsx';
 
 interface BankAppProps {
   onBack: () => void;
@@ -53,103 +53,60 @@ export function BankApp({ onBack }: BankAppProps) {
   const [currentView, setCurrentView] = useState<'login' | 'dashboard' | 'queue' | 'review' | 'portfolio'>('login');
   const [user, setUser] = useState<BankUser | null>(null);
   const [selectedApplication, setSelectedApplication] = useState<LoanApplication | null>(null);
+  const [applications, setApplications] = useState<LoanApplication[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  // Mock loan applications data
-  const [applications] = useState<LoanApplication[]>([
-    {
-      id: 'APP001',
-      applicantName: 'John Kiprotich',
-      businessName: 'Kiprotich Dairy Farm',
-      businessType: 'farmer',
-      location: 'Eldoret, Kenya',
-      amount: 150000,
-      purpose: 'Solar water pump installation',
-      greenScore: 78,
-      interestRate: 14,
-      term: 18,
-      status: 'pending',
-      appliedDate: '2024-01-15',
-      ecoActions: [
-        {
-          id: '1',
-          type: 'solar_pump',
-          description: 'Solar water pump for irrigation',
-          verified: false,
-          evidence: 'receipt_solar_pump.jpg',
-          ocrResult: 'SOLAR PUMP KES 89,000 - GREEN ENERGY SOLUTIONS LTD',
-          riskFlags: []
-        }
-      ],
-      riskAssessment: {
-        creditScore: 725,
-        fraudRisk: 'low',
-        anomalies: [],
-        satelliteData: {
-          ndvi: 0.7,
-          landUse: 'Agricultural',
-          verification: 'verified'
-        }
+  // Fetch applications from API
+  const fetchApplications = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('bankToken');
+      if (!token) return;
+
+      const response = await fetch('/api/bank/applications', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Transform API data to match our interface
+        const transformedApps: LoanApplication[] = data.map((app: any) => ({
+          id: app.id.toString(),
+          applicantName: app.applicant_name,
+          businessName: app.business_name,
+          businessType: app.business_type || 'other',
+          location: app.location || 'Unknown',
+          amount: app.amount_requested,
+          purpose: 'Loan application',
+          greenScore: app.green_score,
+          interestRate: 14,
+          term: 12,
+          status: app.status,
+          appliedDate: app.applied_date,
+          ecoActions: [],
+          riskAssessment: {
+            creditScore: 700,
+            fraudRisk: 'low' as const,
+            anomalies: []
+          }
+        }));
+        setApplications(transformedApps);
       }
-    },
-    {
-      id: 'APP002',
-      applicantName: 'Mary Wanjiku',
-      businessName: 'Elegant Hair Salon',
-      businessType: 'salon',
-      location: 'Thika, Kenya',
-      amount: 75000,
-      purpose: 'Energy efficient equipment',
-      greenScore: 65,
-      interestRate: 15,
-      term: 12,
-      status: 'under_review',
-      appliedDate: '2024-01-14',
-      ecoActions: [
-        {
-          id: '2',
-          type: 'led_lighting',
-          description: 'LED lighting installation',
-          verified: true,
-          evidence: 'led_receipt.jpg',
-          ocrResult: 'LED BULBS x12 KES 4,800 - PHILLIPS LIGHTING'
-        }
-      ],
-      riskAssessment: {
-        creditScore: 680,
-        fraudRisk: 'low',
-        anomalies: []
-      }
-    },
-    {
-      id: 'APP003',
-      applicantName: 'Peter Otieno',
-      businessName: 'Otieno Welding Works',
-      businessType: 'welding',
-      location: 'Kisumu, Kenya',
-      amount: 200000,
-      purpose: 'Inverter welding machine',
-      greenScore: 72,
-      interestRate: 14.5,
-      term: 24,
-      status: 'pending',
-      appliedDate: '2024-01-13',
-      ecoActions: [
-        {
-          id: '3',
-          type: 'inverter_welder',
-          description: 'Energy efficient inverter welder',
-          verified: false,
-          evidence: 'welder_receipt.jpg',
-          riskFlags: ['High amount for business type']
-        }
-      ],
-      riskAssessment: {
-        creditScore: 701,
-        fraudRisk: 'medium',
-        anomalies: ['Amount above average for business type']
-      }
+    } catch (error) {
+      console.error('Failed to fetch applications:', error);
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
+
+  // Fetch applications when user logs in and views queue
+  useEffect(() => {
+    if (user && currentView === 'queue') {
+      fetchApplications();
+    }
+  }, [user, currentView]);
 
   const handleLogin = (userData: BankUser) => {
     setUser(userData);
@@ -169,66 +126,70 @@ export function BankApp({ onBack }: BankAppProps) {
     setCurrentView('review');
   };
 
-  const handleBackToDashboard = () => {
-    setCurrentView('dashboard');
-    setSelectedApplication(null);
-  };
-
-  const handleBackToQueue = () => {
+  const handleDecision = (decision: any) => {
+    console.log('Loan decision:', decision);
     setCurrentView('queue');
-    setSelectedApplication(null);
+    // Refresh applications after review
+    fetchApplications();
   };
 
-  if (!user && currentView !== 'login') {
+  const handleBackFromReview = () => {
+    setSelectedApplication(null);
+    setCurrentView('queue');
+  };
+
+  if (currentView === 'login') {
     return <BankLogin onLogin={handleLogin} onBack={onBack} />;
   }
 
-  switch (currentView) {
-    case 'login':
-      return <BankLogin onLogin={handleLogin} onBack={onBack} />;
-    
-    case 'dashboard':
-      return (
-        <BankDashboard 
-          user={user!}
-          applications={applications}
-          onViewQueue={handleViewQueue}
-          onViewPortfolio={handleViewPortfolio}
-          onBack={onBack}
-        />
-      );
-    
-    case 'queue':
-      return (
-        <ApplicationQueue 
-          applications={applications}
-          onReviewApplication={handleReviewApplication}
-          onBack={handleBackToDashboard}
-        />
-      );
-    
-    case 'review':
-      return (
-        <CaseReview 
-          application={selectedApplication!}
-          onBack={handleBackToQueue}
-          onDecision={(decision) => {
-            // In real app, would update application status
-            console.log('Decision:', decision);
-            setCurrentView('queue');
-          }}
-        />
-      );
-    
-    case 'portfolio':
-      return (
-        <PortfolioDashboard 
-          applications={applications}
-          onBack={handleBackToDashboard}
-        />
-      );
-    
-    default:
-      return null;
+  if (!user) {
+    return <BankLogin onLogin={handleLogin} onBack={onBack} />;
   }
+
+  if (currentView === 'dashboard') {
+    return (
+      <BankDashboard
+        user={user}
+        onViewQueue={handleViewQueue}
+        onViewPortfolio={handleViewPortfolio}
+        onLogout={() => {
+          setUser(null);
+          setCurrentView('login');
+          localStorage.removeItem('bankToken');
+          localStorage.removeItem('bankUser');
+        }}
+        onBack={onBack}
+      />
+    );
+  }
+
+  if (currentView === 'queue') {
+    return (
+      <ApplicationQueue
+        applications={applications}
+        onReviewApplication={handleReviewApplication}
+        onBack={() => setCurrentView('dashboard')}
+      />
+    );
+  }
+
+  if (currentView === 'review' && selectedApplication) {
+    return (
+      <CaseReview
+        application={selectedApplication}
+        onDecision={handleDecision}
+        onBack={handleBackFromReview}
+      />
+    );
+  }
+
+  if (currentView === 'portfolio') {
+    return (
+      <PortfolioDashboard
+        onBack={() => setCurrentView('dashboard')}
+      />
+    );
+  }
+
+  return <BankLogin onLogin={handleLogin} onBack={onBack} />;
 }

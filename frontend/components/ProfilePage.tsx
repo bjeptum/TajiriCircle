@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -28,27 +28,97 @@ import {
   CreditCard,
   Users,
   Wallet,
-  Edit
+  Edit,
+  Loader2
 } from 'lucide-react';
+import { apiService } from '../lib/api';
+
+interface UserProfile {
+  id: number;
+  phone: string;
+  name?: string;
+  email?: string;
+  business_name?: string;
+  business_type?: string;
+  location?: string;
+  green_score: number;
+  created_at?: string;
+  is_verified: boolean;
+}
 
 export function ProfilePage() {
-  const [trustScore] = useState(720); // Out of 850
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
   
-  const userProfile = {
-    name: 'Janet Wanjiku',
-    phone: '+254 700 123 456',
-    email: 'janet.wanjiku@email.com',
-    location: 'Nairobi, Kenya',
-    joinDate: 'March 2024',
-    businessType: 'Retail Shop',
-    verified: true
+  // For demo, using the test user ID
+  const userId = 4;
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await apiService.getUserProfile(userId);
+        setUserProfile(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load profile');
+        console.error('Profile fetch error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserProfile();
+  }, [userId]);
+
+  const handleUpdateProfile = async (updatedData: Partial<UserProfile>) => {
+    try {
+      const updated = await apiService.updateUserProfile(userId, updatedData);
+      setUserProfile(updated);
+      setIsEditing(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update profile');
+    }
   };
 
-  // Loan eligibility calculation
-  const avgWeeklyIncome = 47700 / 7;
-  const monthlyIncome = avgWeeklyIncome * 4.33;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+          <p>Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center text-red-600">
+          <p>Error loading profile: {error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!userProfile) {
+    return <div>No profile data available</div>;
+  }
+
+    // Loan eligibility calculation based on green score and verification
+  const trustScore = userProfile.green_score * 8.5; // Convert 0-100 to 0-850 scale
+  const estimatedMonthlyIncome = 50000; // Default estimate, could be fetched from transactions
   const loanEligibility = {
-    maxAmount: Math.floor((trustScore / 850) * monthlyIncome * 3),
+    maxAmount: Math.min(estimatedMonthlyIncome * 3, trustScore > 650 ? 500000 : 200000),
     interestRate: trustScore > 700 ? 12 : trustScore > 600 ? 15 : 18,
     term: '3-12 months',
     rating: trustScore > 700 ? 'Excellent' : trustScore > 600 ? 'Good' : 'Fair'
@@ -109,14 +179,14 @@ export function ProfilePage() {
           <div className="flex flex-col md:flex-row items-center md:items-start space-y-4 md:space-y-0 md:space-x-6">
             <Avatar className="w-32 h-32 border-4 border-white/30 shadow-xl">
               <AvatarFallback className="text-4xl font-bold bg-white/20 text-white">
-                {userProfile.name.split(' ').map(n => n[0]).join('')}
+                {userProfile.name ? userProfile.name.split(' ').map(n => n[0]).join('') : 'U'}
               </AvatarFallback>
             </Avatar>
             
             <div className="flex-1 text-center md:text-left">
               <div className="flex items-center justify-center md:justify-start space-x-3 mb-3">
-                <h1 className="text-3xl md:text-4xl font-bold">{userProfile.name}</h1>
-                {userProfile.verified && (
+                <h1 className="text-3xl md:text-4xl font-bold">{userProfile.name || 'User'}</h1>
+                {userProfile.is_verified && (
                   <Badge className="bg-green-500 text-white border-green-400 px-3 py-1">
                     <CheckCircle className="w-4 h-4 mr-1" />
                     Verified
@@ -129,25 +199,36 @@ export function ProfilePage() {
                   <Phone className="w-4 h-4" />
                   <span>{userProfile.phone}</span>
                 </div>
-                <div className="flex items-center justify-center md:justify-start space-x-2">
-                  <Mail className="w-4 h-4" />
-                  <span>{userProfile.email}</span>
-                </div>
-                <div className="flex items-center justify-center md:justify-start space-x-2">
-                  <MapPin className="w-4 h-4" />
-                  <span>{userProfile.location}</span>
-                </div>
+                {userProfile.email && (
+                  <div className="flex items-center justify-center md:justify-start space-x-2">
+                    <Mail className="w-4 h-4" />
+                    <span>{userProfile.email}</span>
+                  </div>
+                )}
+                {userProfile.location && (
+                  <div className="flex items-center justify-center md:justify-start space-x-2">
+                    <MapPin className="w-4 h-4" />
+                    <span>{userProfile.location}</span>
+                  </div>
+                )}
                 <div className="flex items-center justify-center md:justify-start space-x-2">
                   <Calendar className="w-4 h-4" />
-                  <span>Member since {userProfile.joinDate}</span>
-                  <span className="mx-2">•</span>
-                  <User className="w-4 h-4" />
-                  <span>{userProfile.businessType}</span>
+                  <span>Member since {userProfile.created_at ? new Date(userProfile.created_at).toLocaleDateString() : 'Recently'}</span>
+                  {userProfile.business_type && (
+                    <>
+                      <span className="mx-2">•</span>
+                      <User className="w-4 h-4" />
+                      <span>{userProfile.business_type}</span>
+                    </>
+                  )}
                 </div>
               </div>
               
               <div className="flex flex-wrap gap-3 mt-4 justify-center md:justify-start">
-                <Button className="bg-white/20 hover:bg-white/30 border-2 border-white/40 text-white">
+                <Button 
+                  onClick={() => setIsEditing(true)}
+                  className="bg-white/20 hover:bg-white/30 border-2 border-white/40 text-white"
+                >
                   <Edit className="w-4 h-4 mr-2" />
                   Edit Profile
                 </Button>
@@ -256,11 +337,11 @@ export function ProfilePage() {
             <div className="flex flex-wrap justify-center gap-4 mt-3">
               <div className="flex items-center text-sm text-green-700">
                 <CheckCircle className="w-4 h-4 mr-1" />
-                Trust Score: {trustScore}/850
+                Trust Score: {trustScore.toFixed(0)}/850
               </div>
               <div className="flex items-center text-sm text-green-700">
                 <CheckCircle className="w-4 h-4 mr-1" />
-                Monthly Income: KSh {monthlyIncome.toFixed(0)}
+                Monthly Income: KSh {estimatedMonthlyIncome.toFixed(0)}
               </div>
               <div className="flex items-center text-sm text-green-700">
                 <CheckCircle className="w-4 h-4 mr-1" />

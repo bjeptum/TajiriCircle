@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
 import { 
@@ -19,54 +19,108 @@ import {
   Star, 
   ArrowUpCircle,
   Activity,
-  Sparkles
+  Sparkles,
+  Loader2
 } from 'lucide-react';
+import { apiService } from '../lib/api';
+
+interface DashboardData {
+  user_id: number;
+  metrics: {
+    total_balance: number;
+    monthly_income: number;
+    monthly_expenses: number;
+    savings_rate: number;
+    green_score: number;
+    business_growth_rate: number;
+  };
+  transaction_summary: {
+    total_incoming: number;
+    total_outgoing: number;
+    total_transactions: number;
+    average_amount: number;
+    business_transactions: number;
+    business_percentage: number;
+  };
+  recent_transactions: any[];
+  recent_activities: any[];
+  insights: any[];
+  chama_overview: any;
+  loan_overview: any;
+  fraud_alerts: any;
+  last_updated: string;
+}
 
 export function Dashboard() {
-  const [trustScore] = useState(720); // Out of 850 (credit score scale)
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Get user ID from localStorage or context
+  const userId = 4; // For demo, we'll use the test user we created
 
-  // Weekly Money In Data - Shows which days receive most cash
-  const weeklyMoneyInData = [
-    { day: 'Mon', amount: 4500, label: 'Monday' },
-    { day: 'Tue', amount: 6200, label: 'Tuesday' },
-    { day: 'Wed', amount: 3800, label: 'Wednesday' },
-    { day: 'Thu', amount: 5100, label: 'Thursday' },
-    { day: 'Fri', amount: 8400, label: 'Friday' },
-    { day: 'Sat', amount: 12500, label: 'Saturday' },
-    { day: 'Sun', amount: 7200, label: 'Sunday' }
-  ];
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await apiService.getDashboardData(userId);
+        setDashboardData(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
+        console.error('Dashboard fetch error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // End of Day Balance - After money in and money out
-  const endOfDayBalanceData = [
-    { day: 'Mon', balance: 18500, moneyIn: 4500, moneyOut: 2100 },
-    { day: 'Tue', balance: 22600, moneyIn: 6200, moneyOut: 2100 },
-    { day: 'Wed', balance: 24300, moneyIn: 3800, moneyOut: 2100 },
-    { day: 'Thu', balance: 27300, moneyIn: 5100, moneyOut: 2100 },
-    { day: 'Fri', balance: 33600, moneyIn: 8400, moneyOut: 2100 },
-    { day: 'Sat', balance: 44000, moneyIn: 12500, moneyOut: 2100 },
-    { day: 'Sun', balance: 49100, moneyIn: 7200, moneyOut: 2100 }
-  ];
+    fetchDashboardData();
+  }, [userId]);
 
-  // Cash Flow Predictions (Next 7 days)
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+          <p>Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center text-red-600">
+          <p>Error loading dashboard: {error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!dashboardData) {
+    return <div>No dashboard data available</div>;
+  }
+
+  // Use real data from backend
+  const { metrics, recent_activities, insights, chama_overview, fraud_alerts } = dashboardData;
+
+  // Generate sample prediction data based on current balance and trends
   const cashFlowPredictions = [
-    { day: 'Today', predicted: 49100, confidence: 'high' },
-    { day: 'Tomorrow', predicted: 52300, confidence: 'high' },
-    { day: 'Day 3', predicted: 55800, confidence: 'medium' },
-    { day: 'Day 4', predicted: 58200, confidence: 'medium' },
-    { day: 'Day 5', predicted: 62500, confidence: 'medium' },
-    { day: 'Day 6', predicted: 68900, confidence: 'low' },
-    { day: 'Day 7', predicted: 72400, confidence: 'low' }
+    { day: 'Today', predicted: metrics.total_balance, confidence: 'high' },
+    { day: 'Tomorrow', predicted: metrics.total_balance * 1.05, confidence: 'high' },
+    { day: 'Day 3', predicted: metrics.total_balance * 1.08, confidence: 'medium' },
+    { day: 'Day 4', predicted: metrics.total_balance * 1.12, confidence: 'medium' },
+    { day: 'Day 5', predicted: metrics.total_balance * 1.15, confidence: 'medium' },
+    { day: 'Day 6', predicted: metrics.total_balance * 1.18, confidence: 'low' },
+    { day: 'Day 7', predicted: metrics.total_balance * 1.22, confidence: 'low' }
   ];
-
-  // Removed chamaData - now on Digital Chama page
-  // Removed loanEligibility - now on Profile page
-
-  // Find best earning day
-  const bestDay = weeklyMoneyInData.reduce((max, day) => 
-    day.amount > max.amount ? day : max
-  );
-
-  // Removed scamAlerts - fraud alerts now only on Fraud Alert page
 
   return (
     <div className="space-y-6 pb-20 md:pb-6">
@@ -79,15 +133,17 @@ export function Dashboard() {
         <div className="relative z-10">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <h1 className="text-3xl md:text-4xl font-bold mb-2">Welcome back, Janet!</h1>
+              <h1 className="text-3xl md:text-4xl font-bold mb-2">Welcome back!</h1>
               <p className="text-red-100 text-lg">Your financial overview</p>
             </div>
             <div className="text-right">
               <div className="text-sm text-red-200 mb-1">Current Balance</div>
-              <div className="text-4xl md:text-5xl font-bold">KSh 49,100</div>
+              <div className="text-4xl md:text-5xl font-bold">
+                KSh {metrics.total_balance.toLocaleString()}
+              </div>
               <div className="text-red-200 text-sm mt-2 flex items-center justify-end">
                 <TrendingUp className="w-4 h-4 mr-1" />
-                +24% this week
+                +{metrics.business_growth_rate.toFixed(1)}% this month
               </div>
             </div>
           </div>
@@ -192,13 +248,13 @@ export function Dashboard() {
                     fill="none"
                     stroke="#f59e0b"
                     strokeWidth="3"
-                    strokeDasharray={`${(trustScore / 850) * 100}, 100`}
+                    strokeDasharray={`${(metrics.green_score / 100) * 100}, 100`}
                     strokeLinecap="round"
                   />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-4xl font-bold text-gray-900">{trustScore}</span>
-                  <span className="text-sm text-gray-600">/ 850</span>
+                  <span className="text-4xl font-bold text-gray-900">{metrics.green_score}</span>
+                  <span className="text-sm text-gray-600">/ 100</span>
                 </div>
               </div>
 
@@ -237,21 +293,38 @@ export function Dashboard() {
                 Money In (This Week)
               </CardTitle>
               <Badge className="bg-green-100 text-green-800 border-green-300 px-3 py-1">
-                Best: {bestDay.label}
+                Income: {metrics.business_growth_rate.toFixed(1)}% growth
               </Badge>
             </div>
-            <p className="text-sm text-gray-600 mt-2">Track which days you earn the most</p>
+            <p className="text-sm text-gray-600 mt-2">Your transaction summary</p>
           </CardHeader>
           <CardContent className="pt-6">
             <div className="mb-4">
               <div className="text-3xl font-bold text-gray-900">
-                KSh {weeklyMoneyInData.reduce((sum, day) => sum + day.amount, 0).toLocaleString()}
+                KSh {dashboardData.transaction_summary.total_incoming.toLocaleString()}
               </div>
-              <div className="text-sm text-gray-600">Total this week</div>
+              <div className="text-sm text-gray-600">Total incoming</div>
+            </div>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div className="bg-green-50 p-4 rounded-lg">
+                <div className="text-sm text-gray-600">Business Transactions</div>
+                <div className="text-xl font-bold text-green-600">
+                  {dashboardData.transaction_summary.business_percentage.toFixed(1)}%
+                </div>
+              </div>
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <div className="text-sm text-gray-600">Average Amount</div>
+                <div className="text-xl font-bold text-blue-600">
+                  KSh {dashboardData.transaction_summary.average_amount.toLocaleString()}
+                </div>
+              </div>
             </div>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={weeklyMoneyInData}>
+                <BarChart data={[
+                  { name: 'Incoming', amount: dashboardData.transaction_summary.total_incoming },
+                  { name: 'Outgoing', amount: dashboardData.transaction_summary.total_outgoing }
+                ]}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis 
                     dataKey="day" 
@@ -303,13 +376,27 @@ export function Dashboard() {
           <CardContent className="pt-6">
             <div className="mb-4">
               <div className="text-3xl font-bold text-gray-900">
-                KSh {endOfDayBalanceData[endOfDayBalanceData.length - 1].balance.toLocaleString()}
+                KSh {metrics.total_balance.toLocaleString()}
               </div>
-              <div className="text-sm text-gray-600">Today's closing balance</div>
+              <div className="text-sm text-gray-600">Current balance</div>
+            </div>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div className="bg-green-50 p-4 rounded-lg">
+                <div className="text-sm text-gray-600">Monthly Income</div>
+                <div className="text-xl font-bold text-green-600">
+                  KSh {metrics.monthly_income.toLocaleString()}
+                </div>
+              </div>
+              <div className="bg-red-50 p-4 rounded-lg">
+                <div className="text-sm text-gray-600">Monthly Expenses</div>
+                <div className="text-xl font-bold text-red-600">
+                  KSh {metrics.monthly_expenses.toLocaleString()}
+                </div>
+              </div>
             </div>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={endOfDayBalanceData}>
+                <AreaChart data={cashFlowPredictions}>
                   <defs>
                     <linearGradient id="balanceGradient" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#A51C30" stopOpacity={0.3}/>
@@ -328,14 +415,7 @@ export function Dashboard() {
                     tickFormatter={(value) => `${value / 1000}k`}
                   />
                   <Tooltip 
-                    formatter={(value: any, name: string) => {
-                      const labels: any = {
-                        balance: 'Closing Balance',
-                        moneyIn: 'Money In',
-                        moneyOut: 'Money Out'
-                      };
-                      return [`KSh ${value.toLocaleString()}`, labels[name]];
-                    }}
+                    formatter={(value: any) => [`KSh ${value.toLocaleString()}`, 'Predicted Balance']}
                     contentStyle={{ 
                       backgroundColor: '#fff', 
                       border: '1px solid #e5e7eb',
@@ -345,7 +425,7 @@ export function Dashboard() {
                   />
                   <Area 
                     type="monotone" 
-                    dataKey="balance" 
+                    dataKey="predicted" 
                     stroke="#A51C30" 
                     strokeWidth={3}
                     fill="url(#balanceGradient)"
@@ -357,8 +437,8 @@ export function Dashboard() {
             <div className="mt-4 p-4 bg-amber-50 rounded-xl border border-amber-200">
               <div className="flex items-center text-sm text-amber-800">
                 <TrendingUp className="w-4 h-4 mr-2" />
-                <span className="font-medium">Growth: </span>
-                <span className="ml-1">Your balance grew by KSh 30,600 this week!</span>
+                <span className="font-medium">Savings Rate: </span>
+                <span className="ml-1">{metrics.savings_rate.toFixed(1)}% of your income is saved!</span>
               </div>
             </div>
           </CardContent>

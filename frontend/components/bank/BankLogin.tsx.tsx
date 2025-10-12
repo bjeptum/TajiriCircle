@@ -3,7 +3,6 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Badge } from '../ui/badge';
 import { BankUser } from '../BankApp';
 import { ArrowLeft, Building2, Shield, Lock } from 'lucide-react';
@@ -16,41 +15,47 @@ interface BankLoginProps {
 export function BankLogin({ onLogin, onBack }: BankLoginProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [selectedRole, setSelectedRole] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-
-  // Mock user roles for demo
-  const demoUsers = {
-    underwriter: {
-      name: 'Sarah Mwangi',
-      role: 'underwriter' as const,
-      permissions: ['review_applications', 'approve_loans_under_100k', 'view_portfolio']
-    },
-    manager: {
-      name: 'David Kimani',
-      role: 'manager' as const,
-      permissions: ['review_applications', 'approve_all_loans', 'view_portfolio', 'manage_users', 'export_reports']
-    },
-    admin: {
-      name: 'Grace Wanjiru',
-      role: 'admin' as const,
-      permissions: ['full_access', 'system_settings', 'audit_logs', 'manage_users', 'export_reports']
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedRole) return;
+    if (!email || !password) return;
 
     setIsLoading(true);
     
-    // Simulate authentication
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    const userData = demoUsers[selectedRole as keyof typeof demoUsers];
-    onLogin(userData);
-    
-    setIsLoading(false);
+    try {
+      // Use real API for bank login
+      const response = await fetch('/api/bank/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Login failed');
+      }
+
+      const { user, access_token } = await response.json();
+      
+      // Store token for subsequent requests
+      localStorage.setItem('bankToken', access_token);
+      localStorage.setItem('bankUser', JSON.stringify(user));
+      
+      const userData = {
+        name: user.name,
+        role: user.role,
+        permissions: user.permissions || []
+      };
+      
+      onLogin(userData);
+    } catch (error) {
+      console.error('Login error:', error);
+      alert('Login failed. Please check your credentials.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -103,57 +108,18 @@ export function BankLogin({ onLogin, onBack }: BankLoginProps) {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label>Demo Role (Select to continue)</Label>
-                <Select value={selectedRole} onValueChange={setSelectedRole}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select your role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="underwriter">
-                      <div className="space-y-1">
-                        <div className="font-medium">Loan Underwriter</div>
-                        <div className="text-xs text-gray-500">Review and approve small loans</div>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="manager">
-                      <div className="space-y-1">
-                        <div className="font-medium">Credit Manager</div>
-                        <div className="text-xs text-gray-500">Full loan approval authority</div>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="admin">
-                      <div className="space-y-1">
-                        <div className="font-medium">System Administrator</div>
-                        <div className="text-xs text-gray-500">Complete system access</div>
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {selectedRole && (
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <Badge variant="outline" className="text-blue-600 border-blue-600">
-                      {demoUsers[selectedRole as keyof typeof demoUsers].role.charAt(0).toUpperCase() + 
-                       demoUsers[selectedRole as keyof typeof demoUsers].role.slice(1)}
-                    </Badge>
-                    <span className="text-sm font-medium text-blue-800">
-                      {demoUsers[selectedRole as keyof typeof demoUsers].name}
-                    </span>
-                  </div>
-                  <p className="text-xs text-blue-700">
-                    Permissions: {demoUsers[selectedRole as keyof typeof demoUsers].permissions.slice(0, 3).join(', ')}
-                    {demoUsers[selectedRole as keyof typeof demoUsers].permissions.length > 3 && '...'}
-                  </p>
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h4 className="font-medium text-blue-900 mb-2">Demo Credentials</h4>
+                <div className="text-sm text-blue-700 space-y-1">
+                  <p><strong>Email:</strong> banker@bank.com</p>
+                  <p><strong>Password:</strong> bankpass123</p>
                 </div>
-              )}
+              </div>
 
               <Button 
                 type="submit" 
                 className="w-full bg-slate-800 hover:bg-slate-900 h-12"
-                disabled={!selectedRole || isLoading}
+                disabled={!email || !password || isLoading}
               >
                 {isLoading ? (
                   <div className="flex items-center space-x-2">
